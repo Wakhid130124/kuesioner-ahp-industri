@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kuesioner AHP</title>
+<style>
+  :root {
+    --ink: #1E3A5F;
+    --ink-soft: #3D5A80;
+    --paper: #FAF7F0;
+    --paper-raised: #FFFFFF;
+    --line: #D9D2C2;
+    --gold: #B8863B;
+    --gold-soft: #E9DCC0;
+    --good: #2F6B4F;
+    --bad: #A63D3D;
+    --text: #2A2A28;
+    --text-mute: #6B6558;
+  }
+  * { box-sizing: border-box; }
+  .ahp-root {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--paper);
+    color: var(--text);
+    min-height: 100%;
+    padding: 0;
+    line-height: 1.55;
+  }
+  .ahp-shell {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 28px 20px 80px;
+  }
+  .ahp-mast {
+    border-bottom: 3px solid var(--ink);
+    padding-bottom: 18px;
+    margin-bottom: 24px;
+  }
+  .ahp-eyebrow {
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--gold);
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .ahp-title {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 4px;
+    line-height: 1.25;
+  }
+  .ahp-subtitle {
+    font-size: 14px;
+    color: var(--text-mute);
+    font-style: italic;
+  }
+  .ahp-progress {
+    display: flex;
+    gap: 4px;
+    margin: 18px 0 0;
+  }
+  .ahp-progress-seg {
+    flex: 1;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--line);
+    transition: background 0.3s;
+  }
+  .ahp-progress-seg.done { background: var(--gold); }
+  .ahp-progress-seg.current { background: var(--ink-soft); }
+  .ahp-step-label {
+    font-size: 12px;
+    color: var(--text-mute);
+    margin-top: 8px;
+    letter-spacing: 0.03em;
+  }
+
+  .ahp-card {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 24px 22px;
+    margin-bottom: 18px;
+    box-shadow: 0 1px 2px rgba(30,58,95,0.04);
+  }
+  .ahp-h2 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 19px;
+    color: var(--ink);
+    margin: 0 0 14px;
+    font-weight: 700;
+  }
+  .ahp-p { font-size: 14.5px; color: var(--text); margin: 0 0 12px; }
+  .ahp-note {
+    font-size: 13px;
+    color: var(--text-mute);
+    background: var(--gold-soft);
+    border-left: 3px solid var(--gold);
+    padding: 10px 14px;
+    border-radius: 4px;
+    margin: 12px 0;
+  }
+
+  .ahp-scale-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
+  .ahp-scale-table th, .ahp-scale-table td {
+    border: 1px solid var(--line);
+    padding: 7px 10px;
+    text-align: left;
+  }
+  .ahp-scale-table th { background: var(--ink); color: white; font-weight: 600; }
+  .ahp-scale-table td:first-child { text-align: center; font-weight: 700; color: var(--ink); width: 70px; }
+
+  .ahp-field { margin-bottom: 16px; }
+  .ahp-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 5px;
+  }
+  .ahp-input, .ahp-select {
+    width: 100%;
+    padding: 9px 11px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+    background: var(--paper-raised);
+    color: var(--text);
+  }
+  .ahp-input:focus, .ahp-select:focus {
+    outline: 2px solid var(--ink-soft);
+    outline-offset: 1px;
+    border-color: var(--ink-soft);
+  }
+
+  .ahp-pair-block { margin-bottom: 28px; }
+  .ahp-pair-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 8px;
+  }
+  .ahp-pair-labels span:last-child { text-align: right; }
+  .ahp-scale-row {
+    display: flex;
+    gap: 3px;
+    justify-content: space-between;
+  }
+  .ahp-scale-btn {
+    flex: 1;
+    min-width: 0;
+    aspect-ratio: 1;
+    border: 1.5px solid var(--line);
+    background: var(--paper-raised);
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-mute);
+    cursor: pointer;
+    transition: all 0.12s;
+    padding: 0;
+  }
+  .ahp-scale-btn:hover { border-color: var(--ink-soft); }
+  .ahp-scale-btn.mid { border-color: var(--gold); }
+  .ahp-scale-btn.selected {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: white;
+    transform: scale(1.08);
+  }
+  .ahp-scale-btn.selected.mid { background: var(--gold); border-color: var(--gold); }
+  .ahp-scale-hint {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10.5px;
+    color: var(--text-mute);
+    margin-top: 4px;
+  }
+
+  .ahp-cr-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 20px;
+    margin-top: 6px;
+  }
+  .ahp-cr-badge.good { background: #E4F0E8; color: var(--good); }
+  .ahp-cr-badge.bad { background: #F5E4E4; color: var(--bad); }
+  .ahp-cr-badge.pending { background: var(--line); color: var(--text-mute); }
+
+  .ahp-nav {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 22px;
+  }
+  .ahp-btn {
+    padding: 11px 22px;
+    border-radius: 7px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    font-family: inherit;
+  }
+  .ahp-btn-primary { background: var(--ink); color: white; }
+  .ahp-btn-primary:hover { background: var(--ink-soft); }
+  .ahp-btn-primary:disabled { background: var(--line); color: var(--text-mute); cursor: not-allowed; }
+  .ahp-btn-ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--line); }
+  .ahp-btn-ghost:hover { border-color: var(--ink); }
+
+  .ahp-done-icon {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--good); color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; margin: 0 auto 16px;
+  }
+  .ahp-footer-link {
+    text-align: center;
+    margin-top: 30px;
+    font-size: 12px;
+    color: var(--text-mute);
+  }
+  .ahp-footer-link button {
+    background: none; border: none; color: var(--text-mute);
+    text-decoration: underline; cursor: pointer; font-size: 12px; font-family: inherit;
+  }
+
+  .ahp-admin-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 10px; }
+  .ahp-admin-table th, .ahp-admin-table td {
+    border: 1px solid var(--line); padding: 6px 8px; text-align: left;
+  }
+  .ahp-admin-table th { background: var(--ink); color: white; }
+  .ahp-weight-bar-wrap { background: var(--line); border-radius: 4px; overflow: hidden; height: 16px; width: 100%; }
+  .ahp-weight-bar { background: var(--gold); height: 100%; }
+</style>
+</head>
+<body>
+
+<div class="ahp-root" id="ahpRoot"></div>
+
+<script>
+(function(){
+
+  // ---------- DATA MODEL ----------
+  var L1_PAIRS = [
+    { a: 'Kesehatan', b: 'Kenyamanan' },
+    { a: 'Kesehatan', b: 'Kemudahan' },
+    { a: 'Kenyamanan', b: 'Kemudahan' }
+  ];
+
+  var L2_GROUPS = {
+    kesehatan: {
+      label: 'Subkriteria Kesehatan',
+      items: ['Sistem Penghawaan', 'Sistem Pencahayaan', 'Sanitasi & Pengelolaan Limbah', 'Penggunaan Bahan Bangunan'],
+      pairs: [[0,1],[0,2],[0,3],[1,2],[1,3],[2,3]]
+    },
+    kenyamanan: {
+      label: 'Subkriteria Kenyamanan',
+      items: ['Ruang Gerak & Hub. Antarruang', 'Kondisi Udara Dalam Ruang', 'Pandangan Dari/Ke Bangunan', 'Getaran & Kebisingan'],
+      pairs: [[0,1],[0,2],[0,3],[1,2],[1,3],[2,3]]
+    },
+    kemudahan: {
+      label: 'Subkriteria Kemudahan',
+      items: ['Hubungan Horizontal Antarruang', 'Hubungan Vertikal Antarlantai', 'Kelengkapan Prasarana & Sarana'],
+      pairs: [[0,1],[0,2],[1,2]]
+    }
+  };
+
+  var RI_TABLE = { 1:0, 2:0, 3:0.58, 4:0.9, 5:1.12, 6:1.24, 7:1.32, 8:1.41, 9:1.45, 10:1.49 };
+
+  // ---------- PENELITI ----------
+  var RESEARCHER_WHATSAPP = '6281253231682'; 
+  var RESEARCHER_EMAIL = 'wakhid.41124818@mhs.polines.ac.id';
+  var RESEARCHER_NAME = 'Wakhid Abdul Hadi';
+  
+  // ---------- LINK SUDAH SAYA MASUKKAN OTOMATIS DISINI ----------
+  var GOOGLE_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzsLpS76Q25kfdSgJeopgOYpc_0rl84nooYHP-NQOHgXQylhsIsfd7fxcrN-96cYxL5/exec';
+  // ------------------------------------------------------------------
+
+  var SCALE = [9,8,7,6,5,4,3,2,1,2,3,4,5,6,7,8,9]; 
+
+  var STEPS = ['intro','identity','l1','l2_kesehatan','l2_kenyamanan','l2_kemudahan','review','done'];
+  var STEP_LABELS = {
+    intro: 'Petunjuk Pengisian',
+    identity: 'Identitas Responden',
+    l1: 'Perbandingan Kriteria (Level 1)',
+    l2_kesehatan: 'Subkriteria Kesehatan',
+    l2_kenyamanan: 'Subkriteria Kenyamanan',
+    l2_kemudahan: 'Subkriteria Kemudahan',
+    review: 'Tinjau & Kirim',
+    done: 'Selesai'
+  };
+
+  // ---------- STATE ----------
+  var state = {
+    stepIndex: 0,
+    adminMode: false,
+    adminUnlocked: false,
+    identity: { nama: '', instansi: '', jabatan: '', jabatanLainnya: '', keahlian: '', pengalaman: '', sertifikasi: '' },
+    l1: [null, null, null], 
+    l2: {
+      kesehatan: [null,null,null,null,null,null],
+      kenyamanan: [null,null,null,null,null,null],
+      kemudahan: [null,null,null]
+    },
+    submitting: false,
+    submitError: '',
+    lastFilename: '',
+    lastChannel: '',
+    importedResponses: [],
+    importError: '',
+    adminData: null,
+    adminLoading: false
+  };
+
+  // ---------- AHP MATH ----------
+  function buildMatrixFromSelections(n, pairs, selections) {
+    var M = [];
+    for (var i=0;i<n;i++){ M.push(new Array(n).fill(1)); }
+    for (var k=0;k<pairs.length;k++){
+      var i = pairs[k][0], j = pairs[k][1];
+      var idx = selections[k];
+      var aij = 1;
+      if (idx !== null && idx !== undefined) {
+        var val = SCALE[idx];
+        if (idx < 8) aij = val;            
+        else if (idx > 8) aij = 1/val;      
+        else aij = 1;                       
+      }
+      M[i][j] = aij;
+      M[j][i] = 1/aij;
+    }
+    return M;
+  }
+
+  function computeWeightsAndCR(M) {
+    var n = M.length;
+    var gm = M.map(function(row){
+      var prod = row.reduce(function(p,v){ return p*v; }, 1);
+      return Math.pow(prod, 1/n);
+    });
+    var sum = gm.reduce(function(a,b){return a+b;},0);
+    var w = gm.map(function(v){ return v/sum; });
+    var Mw = M.map(function(row){
+      return row.reduce(function(s,v,j){ return s + v*w[j]; }, 0);
+    });
+    var ratios = Mw.map(function(v,i){ return v / w[i]; });
+    var lambdaMax = ratios.reduce(function(a,b){return a+b;},0) / n;
+    var CI = (lambdaMax - n) / (n - 1 || 1);
+    var RI = RI_TABLE[n] || 1.49;
+    var CR = RI === 0 ? 0 : CI / RI;
+    return { weights: w, CR: CR, lambdaMax: lambdaMax };
+  }
+
+  function allFilled(arr) { return arr.every(function(v){ return v !== null && v !== undefined; }); }
+
+  function groupResult(groupKey) {
+    var g = L2_GROUPS[groupKey];
+    var sel = state.l2[groupKey];
+    if (!allFilled(sel)) return null;
+    var M = buildMatrixFromSelections(g.items.length, g.pairs, sel);
+    return computeWeightsAndCR(M);
+  }
+
+  // JALUR NAVIGASI & REDIRECT UNTUK OPSI 1
+  function l1Result() {
+    if (!allFilled(state.l1)) return null;
+    var M = buildMatrixFromSelections(3, [[0,1],[0,2],[1,2]], state.l1);
+    return computeWeightsAndCR(M);
+  }
+
+  function withTimeout(promise, ms, timeoutMessage) {
+    return Promise.race([
+      promise,
+      new Promise(function(_, reject){
+        setTimeout(function(){ reject(new Error(timeoutMessage)); }, ms);
+      })
+    ]);
+  }
+
+  function downloadJSON(filename, dataObj) {
+    var blob = new window.Blob([JSON.stringify(dataObj, null, 2)], {type:'application/json'});
+    var url = window.URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ window.URL.revokeObjectURL(url); }, 1000);
+  }
+
+  function buildPayload() {
+    return {
+      identity: state.identity,
+      l1: state.l1,
+      l2: state.l2,
+      submittedAt: new Date().toISOString()
+    };
+  }
+
+  function buildMessageText(payload) {
+    return 'Jawaban Kuesioner AHP\nNama: ' + (payload.identity.nama || '-') +
+      '\nInstansi: ' + (payload.identity.instansi || '-') +
+      '\n\nMohon jangan diedit, teks di bawah ini dibaca otomatis oleh peneliti:\n[DATA-AHP]' + JSON.stringify(payload) + '[/DATA-AHP]';
+  }
+
+  function openWhatsAppFallback(payload) {
+    var link = 'https://wa.me/' + RESEARCHER_WHATSAPP + '?text=' + encodeURIComponent(buildMessageText(payload));
+    window.open(link, '_blank');
+  }
+
+  function downloadResponseFile() {
+    var payload = buildPayload();
+    var slug = (state.identity.nama || 'anon').toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,40);
+    var filename = 'jawaban-ahp-' + slug + '.json';
+    downloadJSON(filename, payload);
+    state.lastFilename = filename;
+    state.lastChannel = 'file';
+    goStep('done');
+  }
+
+  // PENGIRIMAN DATA KE GOOGLE SHEETS VIA FETCH API
+  async function submitResponse() {
+    state.submitting = true; state.submitError = ''; render();
+    var payload = buildPayload();
+    
+    try {
+      await withTimeout(
+        fetch(GOOGLE_WEB_APP_URL, {
+          method: 'POST',
+          mode: 'no-cors', 
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        }),
+        10000,
+        'Waktu tunggu habis (Koneksi lambat)'
+      );
+
+      state.submitting = false;
+      state.lastChannel = 'storage';
+      goStep('done');
+    } catch (e) {
+      console.warn('Penyimpanan otomatis gagal, beralih ke WhatsApp:', e);
+      state.submitting = false;
+      try {
+        openWhatsAppFallback(payload);
+        state.lastChannel = 'whatsapp-fallback';
+        goStep('done');
+      } catch (e2) {
+        console.error('Fallback WhatsApp juga gagal:', e2);
+        state.submitError = 'Gagal mengirim jawaban secara otomatis. Silakan tekan tombol di bawah untuk mengunduh jawaban Anda sebagai file, lalu kirim manual.';
+        render();
+      }
+    }
+  }
+
+  function aggregateGroup(groupKeyOrL1, itemsCount, pairs, responses) {
+    var n = itemsCount;
+    var cellLists = {};
+    responses.forEach(function(r){
+      var sel = groupKeyOrL1 === 'l1' ? r.l1 : r.l2[groupKeyOrL1];
+      if (!sel || !allFilled(sel)) return;
+      var M = buildMatrixFromSelections(n, pairs, sel);
+      for (var i=0;i<n;i++) for (var j=0;j<n;j++){
+        var k = i+'_'+j;
+        if (!cellLists[k]) cellLists[k] = [];
+        cellLists[k].push(M[i][j]);
+      }
+    });
+    var agg = [];
+    for (var i=0;i<n;i++){ agg.push(new Array(n).fill(1)); }
+    var validCount = 0;
+    for (var i=0;i<n;i++) for (var j=0;j<n;j++){
+      var list = cellLists[i+'_'+j];
+      if (list && list.length) {
+        var prod = list.reduce(function(p,v){return p*v;},1);
+        agg[i][j] = Math.pow(prod, 1/list.length);
+        if (i===0 && j===1) validCount = list.length;
+      }
+    }
+    var res = computeWeightsAndCR(agg);
+    res.n = validCount;
+    return res;
+  }
+
+  // ---------- NAVIGATION ----------
+  function goStep(name) {
+    var idx = STEPS.indexOf(name);
+    if (idx >= 0) state.stepIndex = idx;
+    window.scrollTo({top:0, behavior:'smooth'});
+    render();
+  }
+  function nextStep() { goStep(STEPS[state.stepIndex+1]); }
+  function prevStep() { goStep(STEPS[state.stepIndex-1]); }
+
+  function canProceedIdentity() {
+    var id = state.identity;
+    return id.nama.trim() && id.instansi.trim() && id.jabatan.trim() && id.keahlian && id.pengalaman;
+  }
+
+  // ---------- RENDER HELPERS ----------
+  function el(tag, attrs, children) {
+    var e = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function(k){
+      if (attrs[k] === null || attrs[k] === undefined) return;
+      if (k === 'class') e.className = attrs[k];
+      else if (k === 'html') e.innerHTML = attrs[k];
+      else if (k.indexOf('on') === 0) e.addEventListener(k.slice(2), attrs[k]);
+      else e.setAttribute(k, attrs[k]);
+    });
+    (children||[]).forEach(function(c){
+      if (c === null || c === undefined) return;
+      if (typeof c === 'string') e.appendChild(document.createTextNode(c));
+      else e.appendChild(c);
+    });
+    return e;
+  }
+
+  function progressBar() {
+    var visibleSteps = STEPS.slice(0, STEPS.length-1);
+    var wrap = el('div', {});
+    var bar = el('div', {class:'ahp-progress'});
+    visibleSteps.forEach(function(s, i){
+      var cls = 'ahp-progress-seg';
+      if (i < state.stepIndex) cls += ' done';
+      else if (i === state.stepIndex) cls += ' current';
+      bar.appendChild(el('div', {class: cls}));
+    });
+    wrap.appendChild(bar);
+    if (state.stepIndex < visibleSteps.length) {
+      wrap.appendChild(el('div', {class:'ahp-step-label'}, [
+        'Langkah ' + (state.stepIndex+1) + ' dari ' + visibleSteps.length + ' \u00b7 ' + STEP_LABELS[STEPS[state.stepIndex]]
+      ]));
+    }
+    return wrap;
+  }
+
+  function crBadge(result) {
+    if (!result) return el('span', {class:'ahp-cr-badge pending'}, ['Belum lengkap']);
+    if (result.CR <= 0.1) {
+      return el('span', {class:'ahp-cr-badge good'}, ['\u2713 Konsisten (CR = ' + result.CR.toFixed(3) + ')']);
+    }
+    return el('span', {class:'ahp-cr-badge bad'}, ['\u26a0 Belum konsisten (CR = ' + result.CR.toFixed(3) + ') \u2014 mohon tinjau ulang jawaban di atas']);
+  }
+
+  function scaleRow(pairKey, a, b, currentIdx, onPick) {
+    var block = el('div', {class:'ahp-pair-block'});
+    block.appendChild(el('div', {class:'ahp-pair-labels'}, [
+      el('span', {}, [a]), el('span', {}, [b])
+    ]));
+    var row = el('div', {class:'ahp-scale-row'});
+    SCALE.forEach(function(val, idx){
+      var isMid = idx === 8;
+      var cls = 'ahp-scale-btn' + (isMid ? ' mid' : '') + (currentIdx === idx ? ' selected' : '');
+      row.appendChild(el('button', {
+        type: 'button',
+        class: cls,
+        onclick: function(){ onPick(idx); }
+      }, [String(val)]));
+    });
+    block.appendChild(row);
+    block.appendChild(el('div', {class:'ahp-scale-hint'}, [
+      el('span', {}, ['\u2190 ' + a + ' lebih penting']),
+      el('span', {}, [b + ' lebih penting \u2192'])
+    ]));
+    return block;
+  }
+
+  // ---------- STEP RENDERERS ----------
+  function renderIntro() {
+    var card = el('div', {class:'ahp-card'});
+    card.appendChild(el('div', {class:'ahp-h2'}, ['Petunjuk Pengisian']));
+    card.appendChild(el('p', {class:'ahp-p'}, [
+      'Kuesioner ini bertujuan memperoleh penilaian Bapak/Ibu mengenai bobot kepentingan relatif antar kriteria dan subkriteria keandalan bangunan gedung industri, khususnya bangunan pabrik (kesehatan, kenyamanan, kemudahan), sebagai metode Analytical Hierarchy Process (AHP) yang menjadi pembanding terhadap hasil penilaian checklist kelaikan fungsi berdasarkan Permen PUPR No. 27/PRT/M/2018.'
+    ]));
+    card.appendChild(el('p', {class:'ahp-p'}, [
+      'Kriteria keselamatan tidak dimasukkan dalam kuesioner ini karena diperlakukan sebagai prasyarat mutlak (metode dikotomi), bukan kriteria yang dibobot.'
+    ]));
+    card.appendChild(el('div', {class:'ahp-note'}, [
+      'Mohon dasarkan penilaian Bapak/Ibu pada konteks bangunan gedung industri, khususnya bangunan pabrik (fungsi produksi, penyimpanan, dan distribusi) \u2014 bukan bangunan gedung fungsi lain seperti kantor, mall, atau hotel.'
+    ]));
+    card.appendChild(el('p', {class:'ahp-p'}, [
+      'Untuk setiap pasangan, klik satu angka yang paling sesuai dengan penilaian Anda. Semakin dekat ke arah salah satu kriteria, semakin besar kriteria tersebut dinilai lebih penting.'
+    ]));
+    var table = el('table', {class:'ahp-scale-table'});
+    table.appendChild(el('tr',{},[el('th',{},['Nilai']), el('th',{},['Definisi'])]));
+    [
+      ['1','Kedua kriteria sama penting'],
+      ['3','Kriteria satu sedikit lebih penting'],
+      ['5','Kriteria satu jelas lebih penting'],
+      ['7','Kriteria satu sangat jelas lebih penting'],
+      ['9','Kriteria satu mutlak lebih penting'],
+      ['2,4,6,8','Nilai tengah di antara dua penilaian berdekatan']
+    ].forEach(function(row){
+      table.appendChild(el('tr',{},[el('td',{},[row[0]]), el('td',{},[row[1]])]));
+    });
+    card.appendChild(table);
+    card.appendChild(el('div', {class:'ahp-note'}, [
+      'Sistem akan menghitung rasio konsistensi (CR) jawaban Anda secara otomatis. Jika CR melebihi 0,1, Anda akan diminta meninjau ulang bagian tersebut sebelum melanjutkan.'
+    ]));
+    return card;
+  }
+
+  function syncNextButtonState() {
+    var btn = document.querySelector('.ahp-nav .ahp-btn-primary');
+    if (btn) btn.disabled = !canProceedIdentity();
+  }
+
+  function renderIdentity() {
+    var card = el('div', {class:'ahp-card'});
+    card.appendChild(el('div', {class:'ahp-h2'}, ['Identitas Responden']));
+    function field(labelText, key, type, placeholder) {
+      var wrap = el('div', {class:'ahp-field'});
+      wrap.appendChild(el('label', {class:'ahp-label'}, [labelText]));
+      var input = el('input', {
+        class: 'ahp-input', type: type || 'text', value: state.identity[key] || '', placeholder: placeholder || '',
+        oninput: function(e){ state.identity[key] = e.target.value; syncNextButtonState(); }
+      });
+      wrap.appendChild(input);
+      return wrap;
+    }
+    function selectField(labelText, key, options, onExtra) {
+      var wrap = el('div', {class:'ahp-field'});
+      wrap.appendChild(el('label', {class:'ahp-label'}, [labelText]));
+      var select = el('select', {
+        class: 'ahp-select',
+        onchange: function(e){
+          state.identity[key] = e.target.value;
+          syncNextButtonState();
+          if (onExtra) onExtra(e.target.value);
+        }
+      });
+      options.forEach(function(opt){
+        var o = el('option', {value: opt.value}, [opt.label]);
+        if (opt.value === state.identity[key]) o.setAttribute('selected','selected');
+        select.appendChild(o);
+      });
+      wrap.appendChild(select);
+      return wrap;
+    }
+
+    card.appendChild(field('Nama Lengkap', 'nama'));
+    card.appendChild(field('Instansi / Perusahaan', 'instansi'));
+
+    card.appendChild(selectField('Jabatan / Peran dalam Penyelenggaraan Bangunan Gedung', 'jabatan', [
+      { value: '', label: 'Pilih jabatan / peran' },
+      { value: 'Pengkaji Teknis Bangunan Gedung', label: 'Pengkaji Teknis Bangunan Gedung' },
+      { value: 'Tim Profesi Ahli (TPA)', label: 'Tim Profesi Ahli (TPA)' },
+      { value: 'Lainnya', label: 'Lainnya' }
+    ], function(val){
+      var extraWrap = document.getElementById('jabatanLainnyaWrap');
+      if (extraWrap) extraWrap.style.display = (val === 'Lainnya') ? 'block' : 'none';
+    }));
+
+    var jabatanExtraWrap = el('div', {class:'ahp-field', id:'jabatanLainnyaWrap',
+      style: (state.identity.jabatan === 'Lainnya') ? 'display:block;' : 'display:none;'});
+    jabatanExtraWrap.appendChild(el('label', {class:'ahp-label'}, ['Sebutkan Jabatan/Peran Lainnya']));
+    jabatanExtraWrap.appendChild(el('input', {
+      class:'ahp-input', type:'text', value: state.identity.jabatanLainnya || '',
+      oninput: function(e){ state.identity.jabatanLainnya = e.target.value; }
+    }));
+    card.appendChild(jabatanExtraWrap);
+
+    var keahlianWrap = el('div', {class:'ahp-field'});
+    keahlianWrap.appendChild(el('label', {class:'ahp-label'}, ['Bidang Keahlian']));
+    var select = el('select', {
+      class: 'ahp-select',
+      onchange: function(e){ state.identity.keahlian = e.target.value; syncNextButtonState(); }
+    });
+    ['', 'Arsitektur', 'Struktur', 'Mekanikal Elektrikal Plumbing (MEP)', 'Lainnya'].forEach(function(opt){
+      var o = el('option', {value: opt}, [opt || 'Pilih bidang keahlian']);
+      if (opt === state.identity.keahlian) o.setAttribute('selected','selected');
+      select.appendChild(o);
+    });
+    keahlianWrap.appendChild(select);
+    card.appendChild(keahlianWrap);
+    card.appendChild(field('Lama Pengalaman Kerja (tahun)', 'pengalaman', 'number'));
+
+    card.appendChild(selectField('Sertifikasi Kompetensi Kerja (SKK)', 'sertifikasi', [
+      { value: '', label: 'Pilih jenjang SKK' },
+      { value: 'SKK Jenjang 7 (Ahli Muda)', label: 'SKK Jenjang 7 (Ahli Muda)' },
+      { value: 'SKK Jenjang 8 (Ahli Madya)', label: 'SKK Jenjang 8 (Ahli Madya)' },
+      { value: 'SKK Jenjang 9 (Ahli Utama)', label: 'SKK Jenjang 9 (Ahli Utama)' },
+      { value: 'Lainnya/Tidak Memiliki', label: 'Lainnya / Tidak Memiliki' }
+    ]));
+
+    return card;
+  }
+
+  function renderL1() {
+    var card = el('div', {class:'ahp-card'});
+    card.appendChild(el('div', {class:'ahp-h2'}, ['Perbandingan Kriteria Keandalan (Level 1)']));
+    card.appendChild(el('p', {class:'ahp-p'}, ['Bandingkan tingkat kepentingan relatif antar tiga kriteria berikut terhadap keandalan bangunan gedung industri (pabrik):']));
+    L1_PAIRS.forEach(function(pair, i){
+      card.appendChild(scaleRow('l1_'+i, pair.a, pair.b, state.l1[i], function(idx){ state.l1[i] = idx; render(); }));
+    });
+    card.appendChild(crBadge(l1Result()));
+    return card;
+  }
+
+  function renderL2(groupKey) {
+    var g = L2_GROUPS[groupKey];
+    var card = el('div', {class:'ahp-card'});
+    card.appendChild(el('div', {class:'ahp-h2'}, [g.label]));
+    card.appendChild(el('p', {class:'ahp-p'}, ['Bandingkan tingkat kepentingan relatif antar subkriteria berikut:']));
+    g.pairs.forEach(function(pair, i){
+      var a = g.items[pair[0]], b = g.items[pair[1]];
+      card.appendChild(scaleRow(groupKey+'_'+i, a, b, state.l2[groupKey][i], function(idx){ state.l2[groupKey][i] = idx; render(); }));
+    });
+    card.appendChild(crBadge(groupResult(groupKey)));
+    return card;
+  }
+
+  function renderReview() {
+    var card = el('div', {class:'ahp-card'});
+    card.appendChild(el('div', {class:'ahp-h2'}, ['Tinjau Jawaban Anda']));
+
+    var l1r = l1Result();
+    var kesR = groupResult('kesehatan');
+    var kenR = groupResult('kenyamanan');
+    var kemR = groupResult('kemudahan');
+    var allOk = l1r && kesR && kenR && kemR;
+    var allConsistent = allOk && l1r.CR<=0.1 && kesR.CR<=0.1 && kenR.CR<=0.1 && kemR.CR<=0.1;
+
+    function summaryLine(label, result) {
+      var row = el('div', {style:'display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);'});
+      row.appendChild(el('span', {style:'font-size:13.5px;font-weight:600;color:var(--ink);'}, [label]));
+      row.appendChild(crBadge(result));
+      return row;
+    }
+    card.appendChild(summaryLine('Level 1 \u2013 Kriteria', l1r));
+    card.appendChild(summaryLine('Subkriteria Kesehatan', kesR));
+    card.appendChild(summaryLine('Subkriteria Kenyamanan', kenR));
+    card.appendChild(summaryLine('Subkriteria Kemudahan', kemR));
+
+    if (state.submitError) {
+      card.appendChild(el('div', {class:'ahp-note', style:'border-color:var(--bad);background:#F5E4E4;color:var(--bad);'}, [state.submitError]));
+    }
+
+    var submitBtn = el('button', {
+      class: 'ahp-btn ahp-btn-primary',
+      style: 'width:100%;margin-top:10px;',
+      disabled: (!allOk || state.submitting) ? 'disabled' : null,
+      onclick: submitResponse
+    }, [state.submitting ? 'Mengirim...' : 'Kirim Jawaban']);
+    card.appendChild(submitBtn);
+    return card;
+  }
+
+  function renderDone() {
+    var card = el('div', {class:'ahp-card', style:'text-align:center;padding:32px 22px;'});
+    card.appendChild(el('div', {class:'ahp-done-icon'}, ['\u2713']));
+    card.appendChild(el('div', {class:'ahp-h2', style:'text-align:center;'}, ['Terima Kasih!']));
+    card.appendChild(el('p', {class:'ahp-p'}, [
+      'Jawaban Anda, ' + (state.identity.nama || '') + ', telah berhasil otomatis tersimpan di Google Sheets penelitian ini.'
+    ]));
+    return card;
+  }
+
+  function renderAdmin() {
+    var card = el('div', {class:'ahp-card'});
+    card.appendChild(el('div', {class:'ahp-h2'}, ['Rekap Data Responden (Peneliti)']));
+    card.appendChild(el('p', {class:'ahp-p'}, ['Data kuesioner utama masuk secara otomatis dan tersimpan permanen di file Google Sheets Anda.']));
+    card.appendChild(el('button', {
+      class:'ahp-btn ahp-btn-ghost', style:'margin-top:20px;',
+      onclick: function(){ state.adminMode = false; render(); }
+    }, ['\u2190 Kembali ke Kuesioner']));
+    return card;
+  }
+
+  // ---------- MAIN RENDER ----------
+  function render() {
+    var root = document.getElementById('ahpRoot');
+    root.innerHTML = '';
+    var shell = el('div', {class:'ahp-shell'});
+
+    var mast = el('div', {class:'ahp-mast'});
+    mast.appendChild(el('div', {class:'ahp-eyebrow'}, ['Kuesioner Penelitian \u00b7 AHP']));
+    mast.appendChild(el('div', {class:'ahp-title'}, ['Pembobotan Kriteria Keandalan Bangunan Gedung Industri']));
+    mast.appendChild(el('div', {class:'ahp-subtitle'}, ['Untuk Bangunan Gedung Industri (Pabrik) di Indonesia']));
+    if (!state.adminMode) mast.appendChild(progressBar());
+    shell.appendChild(mast);
+
+    if (state.adminMode) {
+      shell.appendChild(renderAdmin());
+      root.appendChild(shell);
+      return;
+    }
+
+    var stepName = STEPS[state.stepIndex];
+    var content;
+    if (stepName === 'intro') content = renderIntro();
+    else if (stepName === 'identity') content = renderIdentity();
+    else if (stepName === 'l1') content = renderL1();
+    else if (stepName === 'l2_kesehatan') content = renderL2('kesehatan');
+    else if (stepName === 'l2_kenyamanan') content = renderL2('kenyamanan');
+    else if (stepName === 'l2_kemudahan') content = renderL2('kemudahan');
+    else if (stepName === 'review') content = renderReview();
+    else if (stepName === 'done') content = renderDone();
+    shell.appendChild(content);
+
+    if (stepName !== 'done' && stepName !== 'review') {
+      var nav = el('div', {class:'ahp-nav'});
+      if (state.stepIndex > 0) {
+        nav.appendChild(el('button', {class:'ahp-btn ahp-btn-ghost', onclick: prevStep}, ['\u2190 Kembali']));
+      } else {
+        nav.appendChild(el('div', {}));
+      }
+      var nextDisabled = false;
+      if (stepName === 'identity') {
+        nextDisabled = !canProceedIdentity();
+      } else if (stepName === 'l1') {
+        var r = l1Result();
+        nextDisabled = !r || r.CR > 0.1;
+      } else if (stepName === 'l2_kesehatan' || stepName === 'l2_kenyamanan' || stepName === 'l2_kemudahan') {
+        var gk = stepName.replace('l2_', '');
+        var gr = groupResult(gk);
+        nextDisabled = !gr || gr.CR > 0.1;
+      }
+      nav.appendChild(el('button', {
+        class:'ahp-btn ahp-btn-primary',
+        disabled: nextDisabled ? 'disabled' : null,
+        onclick: nextStep
+      }, ['Lanjut \u2192']));
+      shell.appendChild(nav);
+    } else if (stepName === 'review') {
+      var nav2 = el('div', {class:'ahp-nav'});
+      nav2.appendChild(el('button', {class:'ahp-btn ahp-btn-ghost', onclick: prevStep}, ['\u2190 Kembali']));
+      shell.appendChild(nav2);
+    }
+
+    root.appendChild(shell);
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
