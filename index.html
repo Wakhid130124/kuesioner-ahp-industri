@@ -285,6 +285,9 @@
     }
   };
 
+  var L1_ITEMS = ['Keselamatan', 'Kesehatan', 'Kenyamanan', 'Kemudahan'];
+  var L1_PAIR_INDEX = [[0,1],[0,2],[0,3],[1,2],[1,3],[2,3]];
+
   var RI_TABLE = { 1:0, 2:0, 3:0.58, 4:0.9, 5:1.12, 6:1.24, 7:1.32, 8:1.41, 9:1.45, 10:1.49 };
 
   // ---------- PENELITI ----------
@@ -295,6 +298,8 @@
   // ---------- LINK SUDAH SAYA MASUKKAN OTOMATIS DISINI ----------
   var GOOGLE_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzsLpS76Q25kfdSgJeopgOYpc_0rl84nooYHP-NQOHgXQylhsIsfd7fxcrN-96cYxL5/exec';
   // ------------------------------------------------------------------
+
+  var ADMIN_ACCESS_CODE = 'ahp-industri-2026';
 
   var SCALE = [9,8,7,6,5,4,3,2,1,2,3,4,5,6,7,8,9]; 
 
@@ -331,7 +336,8 @@
     importedResponses: [],
     importError: '',
     adminData: null,
-    adminLoading: false
+    adminLoading: false,
+    adminError: ''
   };
 
   // ---------- AHP MATH ----------
@@ -386,7 +392,7 @@
   // JALUR NAVIGASI & REDIRECT UNTUK OPSI 1
   function l1Result() {
     if (!allFilled(state.l1)) return null;
-    var M = buildMatrixFromSelections(4, [[0,1],[0,2],[0,3],[1,2],[1,3],[2,3]], state.l1);
+    var M = buildMatrixFromSelections(4, L1_PAIR_INDEX, state.l1);
     return computeWeightsAndCR(M);
   }
 
@@ -480,10 +486,14 @@
   function aggregateGroup(groupKeyOrL1, itemsCount, pairs, responses) {
     var n = itemsCount;
     var cellLists = {};
+    var validCount = 0;
     responses.forEach(function(r){
       var sel = groupKeyOrL1 === 'l1' ? r.l1 : r.l2[groupKeyOrL1];
       if (!sel || !allFilled(sel)) return;
       var M = buildMatrixFromSelections(n, pairs, sel);
+      var indiv = computeWeightsAndCR(M);
+      if (indiv.CR > 0.1) return; // hanya responden konsisten yang dihitung di bobot akhir
+      validCount++;
       for (var i=0;i<n;i++) for (var j=0;j<n;j++){
         var k = i+'_'+j;
         if (!cellLists[k]) cellLists[k] = [];
@@ -492,18 +502,66 @@
     });
     var agg = [];
     for (var i=0;i<n;i++){ agg.push(new Array(n).fill(1)); }
-    var validCount = 0;
     for (var i=0;i<n;i++) for (var j=0;j<n;j++){
       var list = cellLists[i+'_'+j];
       if (list && list.length) {
         var prod = list.reduce(function(p,v){return p*v;},1);
         agg[i][j] = Math.pow(prod, 1/list.length);
-        if (i===0 && j===1) validCount = list.length;
       }
     }
     var res = computeWeightsAndCR(agg);
     res.n = validCount;
     return res;
+  }
+
+  function promptAdminAccess() {
+    var code = window.prompt('Masukkan kode akses peneliti:');
+    if (code === null) return;
+    if (code.trim() === ADMIN_ACCESS_CODE) {
+      state.adminMode = true;
+      loadAdminData();
+    } else {
+      window.alert('Kode akses salah.');
+    }
+  }
+
+  async function loadAdminData() {
+    state.adminLoading = true;
+    state.adminError = '';
+    render();
+    try {
+      var response = await withTimeout(
+        fetch(GOOGLE_WEB_APP_URL + '?action=list'),
+        15000,
+        'Waktu tunggu habis (koneksi lambat)'
+      );
+      var json = await response.json();
+      if (json.status !== 'success') throw new Error(json.message || 'Format data tidak dikenali');
+      state.adminData = json.data;
+    } catch (e) {
+      state.adminError = 'Gagal memuat data dari Google Sheets: ' + e.message +
+        '. Pastikan deployment Apps Script sudah versi terbaru dan akses diset ke "Siapa saja" (Anyone).';
+      state.adminData = null;
+    }
+    state.adminLoading = false;
+    render();
+  }
+
+  function computeResponseResults(r) {
+    return {
+      l1: (r.l1 && allFilled(r.l1)) ? computeWeightsAndCR(buildMatrixFromSelections(4, L1_PAIR_INDEX, r.l1)) : null,
+      keselamatan: groupResultFor(r, 'keselamatan'),
+      kesehatan: groupResultFor(r, 'kesehatan'),
+      kenyamanan: groupResultFor(r, 'kenyamanan'),
+      kemudahan: groupResultFor(r, 'kemudahan')
+    };
+  }
+
+  function groupResultFor(r, groupKey) {
+    var g = L2_GROUPS[groupKey];
+    var sel = r.l2 && r.l2[groupKey];
+    if (!sel || !allFilled(sel)) return null;
+    return computeWeightsAndCR(buildMatrixFromSelections(g.items.length, g.pairs, sel));
   }
 
   // ---------- NAVIGATION ----------
@@ -623,6 +681,9 @@
     card.appendChild(el('div', {class:'ahp-note'}, [
       'Sistem akan menghitung rasio konsistensi (CR) jawaban Anda secara otomatis. Jika CR melebihi 0,1, Anda akan diminta meninjau ulang bagian tersebut sebelum melanjutkan.'
     ]));
+    var footerLink = el('div', {class:'ahp-footer-link'});
+    footerLink.appendChild(el('button', {onclick: promptAdminAccess}, ['Panel Peneliti']));
+    card.appendChild(footerLink);
     return card;
   }
 
@@ -802,11 +863,110 @@
   function renderAdmin() {
     var card = el('div', {class:'ahp-card'});
     card.appendChild(el('div', {class:'ahp-h2'}, ['Rekap Data Responden (Peneliti)']));
-    card.appendChild(el('p', {class:'ahp-p'}, ['Data kuesioner utama masuk secara otomatis dan tersimpan permanen di file Google Sheets Anda.']));
+
     card.appendChild(el('button', {
-      class:'ahp-btn ahp-btn-ghost', style:'margin-top:20px;',
+      class:'ahp-btn ahp-btn-ghost', style:'margin-bottom:16px;',
       onclick: function(){ state.adminMode = false; render(); }
     }, ['\u2190 Kembali ke Kuesioner']));
+
+    if (state.adminLoading) {
+      card.appendChild(el('p', {class:'ahp-p'}, ['Memuat data dari Google Sheets...']));
+      return card;
+    }
+
+    if (state.adminError) {
+      card.appendChild(el('div', {class:'ahp-note', style:'border-color:var(--bad);background:#F5E4E4;color:var(--bad);'}, [state.adminError]));
+      card.appendChild(el('button', {class:'ahp-btn ahp-btn-primary', style:'margin-top:10px;', onclick: loadAdminData}, ['Coba Lagi']));
+      return card;
+    }
+
+    if (!state.adminData || !state.adminData.length) {
+      card.appendChild(el('p', {class:'ahp-p'}, ['Belum ada data responden yang masuk.']));
+      card.appendChild(el('button', {class:'ahp-btn ahp-btn-ghost', style:'margin-top:10px;', onclick: loadAdminData}, ['Muat Ulang']));
+      return card;
+    }
+
+    card.appendChild(el('button', {class:'ahp-btn ahp-btn-ghost', style:'margin-bottom:16px;', onclick: loadAdminData}, ['\u21bb Muat Ulang Data']));
+
+    // ---- Tabel detail per responden ----
+    card.appendChild(el('div', {class:'ahp-h2', style:'font-size:16px;margin-top:6px;'}, ['Detail per Responden (' + state.adminData.length + ' orang)']));
+
+    var table = el('table', {class:'ahp-admin-table'});
+    table.appendChild(el('tr', {}, [
+      el('th', {}, ['Nama']),
+      el('th', {}, ['Jabatan']),
+      el('th', {}, ['Bidang']),
+      el('th', {}, ['Sertifikasi SKK']),
+      el('th', {}, ['Nomor SKK']),
+      el('th', {}, ['CR L1']),
+      el('th', {}, ['CR Keselamatan']),
+      el('th', {}, ['CR Kesehatan']),
+      el('th', {}, ['CR Kenyamanan']),
+      el('th', {}, ['CR Kemudahan'])
+    ]));
+
+    function crCell(result) {
+      if (!result) return el('td', {}, ['\u2013']);
+      var color = result.CR <= 0.1 ? 'var(--good)' : 'var(--bad)';
+      return el('td', {}, [el('span', {style:'font-weight:700;color:' + color + ';'}, [result.CR.toFixed(3)])]);
+    }
+
+    state.adminData.forEach(function(r){
+      var res = computeResponseResults(r);
+      var row = el('tr', {}, [
+        el('td', {}, [r.nama || '-']),
+        el('td', {}, [r.jabatan === 'Lainnya' ? (r.jabatanLainnya || '-') : (r.jabatan || '-')]),
+        el('td', {}, [r.keahlian || '-']),
+        el('td', {}, [r.sertifikasi || '-']),
+        el('td', {}, [r.nomorSkk || '-'])
+      ]);
+      row.appendChild(crCell(res.l1));
+      row.appendChild(crCell(res.keselamatan));
+      row.appendChild(crCell(res.kesehatan));
+      row.appendChild(crCell(res.kenyamanan));
+      row.appendChild(crCell(res.kemudahan));
+      table.appendChild(row);
+    });
+    card.appendChild(table);
+    card.appendChild(el('p', {class:'ahp-p', style:'font-size:12px;color:var(--text-mute);margin-top:8px;'}, [
+      'Warna merah pada CR menandakan jawaban responden tersebut belum konsisten (CR > 0,1) dan otomatis dikeluarkan dari perhitungan bobot akhir gabungan di bawah.'
+    ]));
+
+    // ---- Bobot akhir gabungan ----
+    card.appendChild(el('div', {class:'ahp-h2', style:'font-size:16px;margin-top:26px;'}, ['Bobot Akhir Gabungan (Responden Konsisten, CR \u2264 0,1)']));
+
+    function weightBlock(title, items, result) {
+      var wrap = el('div', {style:'margin-bottom:18px;'});
+      var titleRow = el('div', {style:'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;'});
+      titleRow.appendChild(el('span', {style:'font-size:13.5px;font-weight:700;color:var(--ink);'}, [title]));
+      titleRow.appendChild(el('span', {style:'font-size:12px;color:var(--text-mute);'}, [
+        result ? ('n = ' + result.n + ' \u00b7 CR = ' + result.CR.toFixed(3)) : 'Belum ada data'
+      ]));
+      wrap.appendChild(titleRow);
+      if (result && result.n > 0) {
+        items.forEach(function(item, i){
+          var pct = (result.weights[i] * 100).toFixed(1);
+          var itemRow = el('div', {style:'margin-bottom:6px;'});
+          itemRow.appendChild(el('div', {style:'display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:2px;'}, [
+            el('span', {}, [item]), el('span', {}, [pct + '%'])
+          ]));
+          var barWrap = el('div', {class:'ahp-weight-bar-wrap'});
+          barWrap.appendChild(el('div', {class:'ahp-weight-bar', style:'width:' + pct + '%;'}));
+          itemRow.appendChild(barWrap);
+          wrap.appendChild(itemRow);
+        });
+      } else {
+        wrap.appendChild(el('p', {class:'ahp-p', style:'font-size:12.5px;color:var(--text-mute);'}, ['Belum ada responden yang konsisten (CR \u2264 0,1) untuk kelompok ini.']));
+      }
+      return wrap;
+    }
+
+    card.appendChild(weightBlock('Level 1 \u2013 Kriteria', L1_ITEMS, aggregateGroup('l1', 4, L1_PAIR_INDEX, state.adminData)));
+    ['keselamatan','kesehatan','kenyamanan','kemudahan'].forEach(function(gk){
+      var g = L2_GROUPS[gk];
+      card.appendChild(weightBlock(g.label, g.items, aggregateGroup(gk, g.items.length, g.pairs, state.adminData)));
+    });
+
     return card;
   }
 
