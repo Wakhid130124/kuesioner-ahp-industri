@@ -254,12 +254,20 @@
 
   // ---------- DATA MODEL ----------
   var L1_PAIRS = [
+    { a: 'Keselamatan', b: 'Kesehatan' },
+    { a: 'Keselamatan', b: 'Kenyamanan' },
+    { a: 'Keselamatan', b: 'Kemudahan' },
     { a: 'Kesehatan', b: 'Kenyamanan' },
     { a: 'Kesehatan', b: 'Kemudahan' },
     { a: 'Kenyamanan', b: 'Kemudahan' }
   ];
 
   var L2_GROUPS = {
+    keselamatan: {
+      label: 'Subkriteria Keselamatan',
+      items: ['Sistem Struktur Bangunan Gedung', 'Sistem Proteksi Bahaya Kebakaran', 'Sistem Penangkal Petir', 'Sistem Instalasi Listrik'],
+      pairs: [[0,1],[0,2],[0,3],[1,2],[1,3],[2,3]]
+    },
     kesehatan: {
       label: 'Subkriteria Kesehatan',
       items: ['Sistem Penghawaan', 'Sistem Pencahayaan', 'Sanitasi & Pengelolaan Limbah', 'Penggunaan Bahan Bangunan'],
@@ -290,11 +298,12 @@
 
   var SCALE = [9,8,7,6,5,4,3,2,1,2,3,4,5,6,7,8,9]; 
 
-  var STEPS = ['intro','identity','l1','l2_kesehatan','l2_kenyamanan','l2_kemudahan','review','done'];
+  var STEPS = ['intro','identity','l1','l2_keselamatan','l2_kesehatan','l2_kenyamanan','l2_kemudahan','review','done'];
   var STEP_LABELS = {
     intro: 'Petunjuk Pengisian',
     identity: 'Identitas Responden',
     l1: 'Perbandingan Kriteria (Level 1)',
+    l2_keselamatan: 'Subkriteria Keselamatan',
     l2_kesehatan: 'Subkriteria Kesehatan',
     l2_kenyamanan: 'Subkriteria Kenyamanan',
     l2_kemudahan: 'Subkriteria Kemudahan',
@@ -307,9 +316,10 @@
     stepIndex: 0,
     adminMode: false,
     adminUnlocked: false,
-    identity: { nama: '', instansi: '', jabatan: '', jabatanLainnya: '', keahlian: '', pengalaman: '', sertifikasi: '' },
-    l1: [null, null, null], 
+    identity: { nama: '', instansi: '', jabatan: '', jabatanLainnya: '', keahlian: '', pengalaman: '', sertifikasi: '', nomorSkk: '' },
+    l1: [null, null, null, null, null, null],
     l2: {
+      keselamatan: [null,null,null,null,null,null],
       kesehatan: [null,null,null,null,null,null],
       kenyamanan: [null,null,null,null,null,null],
       kemudahan: [null,null,null]
@@ -376,7 +386,7 @@
   // JALUR NAVIGASI & REDIRECT UNTUK OPSI 1
   function l1Result() {
     if (!allFilled(state.l1)) return null;
-    var M = buildMatrixFromSelections(3, [[0,1],[0,2],[1,2]], state.l1);
+    var M = buildMatrixFromSelections(4, [[0,1],[0,2],[0,3],[1,2],[1,3],[2,3]], state.l1);
     return computeWeightsAndCR(M);
   }
 
@@ -508,7 +518,9 @@
 
   function canProceedIdentity() {
     var id = state.identity;
-    return id.nama.trim() && id.instansi.trim() && id.jabatan.trim() && id.keahlian && id.pengalaman;
+    var hasSkk = id.sertifikasi && id.sertifikasi !== 'Lainnya/Tidak Memiliki';
+    var skkOk = !hasSkk || (id.nomorSkk && id.nomorSkk.trim());
+    return id.nama.trim() && id.instansi.trim() && id.jabatan.trim() && id.keahlian && id.pengalaman && id.sertifikasi && skkOk;
   }
 
   // ---------- RENDER HELPERS ----------
@@ -584,10 +596,10 @@
     var card = el('div', {class:'ahp-card'});
     card.appendChild(el('div', {class:'ahp-h2'}, ['Petunjuk Pengisian']));
     card.appendChild(el('p', {class:'ahp-p'}, [
-      'Kuesioner ini bertujuan memperoleh penilaian Bapak/Ibu mengenai bobot kepentingan relatif antar kriteria dan subkriteria keandalan bangunan gedung industri, khususnya bangunan pabrik (kesehatan, kenyamanan, kemudahan), sebagai metode Analytical Hierarchy Process (AHP) yang menjadi pembanding terhadap hasil penilaian checklist kelaikan fungsi berdasarkan Permen PUPR No. 27/PRT/M/2018.'
+      'Kuesioner ini bertujuan memperoleh penilaian Bapak/Ibu mengenai bobot kepentingan relatif antar kriteria dan subkriteria keandalan bangunan gedung industri, khususnya bangunan pabrik (keselamatan, kesehatan, kenyamanan, kemudahan), sebagai metode Analytical Hierarchy Process (AHP) yang menjadi pembanding terhadap hasil penilaian checklist kelaikan fungsi berdasarkan Permen PUPR No. 27/PRT/M/2018.'
     ]));
     card.appendChild(el('p', {class:'ahp-p'}, [
-      'Kriteria keselamatan tidak dimasukkan dalam kuesioner ini karena diperlakukan sebagai prasyarat mutlak (metode dikotomi), bukan kriteria yang dibobot.'
+      'Mengikuti pendekatan Khoirullah (2024), keempat kriteria keandalan bangunan gedung tersebut diberi bobot kepentingan melalui AHP tanpa memisahkan keselamatan sebagai prasyarat dikotomis tersendiri.'
     ]));
     card.appendChild(el('div', {class:'ahp-note'}, [
       'Mohon dasarkan penilaian Bapak/Ibu pada konteks bangunan gedung industri, khususnya bangunan pabrik (fungsi produksi, penyimpanan, dan distribusi) \u2014 bukan bangunan gedung fungsi lain seperti kantor, mall, atau hotel.'
@@ -659,6 +671,7 @@
       { value: '', label: 'Pilih jabatan / peran' },
       { value: 'Pengkaji Teknis Bangunan Gedung', label: 'Pengkaji Teknis Bangunan Gedung' },
       { value: 'Tim Profesi Ahli (TPA)', label: 'Tim Profesi Ahli (TPA)' },
+      { value: 'Akademisi', label: 'Akademisi (Dosen/Peneliti Bidang Bangunan Gedung)' },
       { value: 'Lainnya', label: 'Lainnya' }
     ], function(val){
       var extraWrap = document.getElementById('jabatanLainnyaWrap');
@@ -695,7 +708,21 @@
       { value: 'SKK Jenjang 8 (Ahli Madya)', label: 'SKK Jenjang 8 (Ahli Madya)' },
       { value: 'SKK Jenjang 9 (Ahli Utama)', label: 'SKK Jenjang 9 (Ahli Utama)' },
       { value: 'Lainnya/Tidak Memiliki', label: 'Lainnya / Tidak Memiliki' }
-    ]));
+    ], function(val){
+      var skkWrap = document.getElementById('nomorSkkWrap');
+      if (skkWrap) skkWrap.style.display = (val && val !== 'Lainnya/Tidak Memiliki') ? 'block' : 'none';
+      syncNextButtonState();
+    }));
+
+    var nomorSkkWrap = el('div', {class:'ahp-field', id:'nomorSkkWrap',
+      style: (state.identity.sertifikasi && state.identity.sertifikasi !== 'Lainnya/Tidak Memiliki') ? 'display:block;' : 'display:none;'});
+    nomorSkkWrap.appendChild(el('label', {class:'ahp-label'}, ['Nomor Registrasi SKK']));
+    nomorSkkWrap.appendChild(el('input', {
+      class:'ahp-input', type:'text', value: state.identity.nomorSkk || '',
+      placeholder: 'Sesuai kartu SKK, untuk validasi kompetensi',
+      oninput: function(e){ state.identity.nomorSkk = e.target.value; syncNextButtonState(); }
+    }));
+    card.appendChild(nomorSkkWrap);
 
     return card;
   }
@@ -729,11 +756,12 @@
     card.appendChild(el('div', {class:'ahp-h2'}, ['Tinjau Jawaban Anda']));
 
     var l1r = l1Result();
+    var kesolR = groupResult('keselamatan');
     var kesR = groupResult('kesehatan');
     var kenR = groupResult('kenyamanan');
     var kemR = groupResult('kemudahan');
-    var allOk = l1r && kesR && kenR && kemR;
-    var allConsistent = allOk && l1r.CR<=0.1 && kesR.CR<=0.1 && kenR.CR<=0.1 && kemR.CR<=0.1;
+    var allOk = l1r && kesolR && kesR && kenR && kemR;
+    var allConsistent = allOk && l1r.CR<=0.1 && kesolR.CR<=0.1 && kesR.CR<=0.1 && kenR.CR<=0.1 && kemR.CR<=0.1;
 
     function summaryLine(label, result) {
       var row = el('div', {style:'display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);'});
@@ -742,6 +770,7 @@
       return row;
     }
     card.appendChild(summaryLine('Level 1 \u2013 Kriteria', l1r));
+    card.appendChild(summaryLine('Subkriteria Keselamatan', kesolR));
     card.appendChild(summaryLine('Subkriteria Kesehatan', kesR));
     card.appendChild(summaryLine('Subkriteria Kenyamanan', kenR));
     card.appendChild(summaryLine('Subkriteria Kemudahan', kemR));
@@ -805,6 +834,7 @@
     if (stepName === 'intro') content = renderIntro();
     else if (stepName === 'identity') content = renderIdentity();
     else if (stepName === 'l1') content = renderL1();
+    else if (stepName === 'l2_keselamatan') content = renderL2('keselamatan');
     else if (stepName === 'l2_kesehatan') content = renderL2('kesehatan');
     else if (stepName === 'l2_kenyamanan') content = renderL2('kenyamanan');
     else if (stepName === 'l2_kemudahan') content = renderL2('kemudahan');
@@ -825,7 +855,7 @@
       } else if (stepName === 'l1') {
         var r = l1Result();
         nextDisabled = !r || r.CR > 0.1;
-      } else if (stepName === 'l2_kesehatan' || stepName === 'l2_kenyamanan' || stepName === 'l2_kemudahan') {
+      } else if (stepName === 'l2_keselamatan' || stepName === 'l2_kesehatan' || stepName === 'l2_kenyamanan' || stepName === 'l2_kemudahan') {
         var gk = stepName.replace('l2_', '');
         var gr = groupResult(gk);
         nextDisabled = !gr || gr.CR > 0.1;
