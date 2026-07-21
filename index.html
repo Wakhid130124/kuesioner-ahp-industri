@@ -906,6 +906,29 @@
     return row;
   }
 
+  function pairCompareRow(a, b, selIdx) {
+    var pct = (selIdx / 16) * 100;
+    var wrap = el('div', {style:'margin-bottom:16px;'});
+    wrap.appendChild(el('div', {style:'display:flex;justify-content:space-between;font-size:12px;font-weight:600;color:var(--ink);margin-bottom:6px;'}, [
+      el('span', {}, [a]), el('span', {}, [b])
+    ]));
+    var track = el('div', {style:'position:relative;height:6px;background:var(--line);border-radius:3px;margin:0 8px;'});
+    track.appendChild(el('div', {style:'position:absolute;left:50%;top:-4px;width:2px;height:14px;background:var(--text-mute);opacity:0.45;transform:translateX(-50%);'}));
+    if (pct < 50) {
+      track.appendChild(el('div', {style:'position:absolute;left:' + pct + '%;top:0;width:' + (50 - pct) + '%;height:100%;background:var(--ink);border-radius:3px;'}));
+    } else if (pct > 50) {
+      track.appendChild(el('div', {style:'position:absolute;left:50%;top:0;width:' + (pct - 50) + '%;height:100%;background:var(--gold);border-radius:3px;'}));
+    }
+    var dotColor = pct === 50 ? 'var(--text-mute)' : (pct < 50 ? 'var(--ink)' : 'var(--gold)');
+    track.appendChild(el('div', {style:'position:absolute;left:' + pct + '%;top:50%;width:13px;height:13px;border-radius:50%;background:' + dotColor + ';transform:translate(-50%,-50%);box-shadow:0 1px 3px rgba(30,58,95,0.3);'}));
+    wrap.appendChild(track);
+    var val = SCALE[selIdx];
+    var desc = (selIdx === 8) ? 'Setara pentingnya' :
+      (selIdx < 8 ? (a + ' lebih penting \u00b7 skala ' + val) : (b + ' lebih penting \u00b7 skala ' + val));
+    wrap.appendChild(el('div', {style:'text-align:center;font-size:11px;color:var(--text-mute);margin-top:5px;'}, [desc]));
+    return wrap;
+  }
+
   function appendSummaryList(container, items, pairs, selections) {
     if (!selections || !allFilled(selections)) {
       container.appendChild(el('p', {class:'ahp-p', style:'font-size:12px;color:var(--text-mute);'}, ['Data jawaban tidak lengkap.']));
@@ -913,17 +936,7 @@
     }
     pairs.forEach(function(pair, i){
       var a = items[pair[0]], b = items[pair[1]];
-      var idx = selections[i];
-      var val = SCALE[idx];
-      var text;
-      if (idx === 8) {
-        text = a + ' setara pentingnya dengan ' + b;
-      } else if (idx < 8) {
-        text = a + ' lebih penting dari ' + b + ' (skala ' + val + ')';
-      } else {
-        text = b + ' lebih penting dari ' + a + ' (skala ' + val + ')';
-      }
-      container.appendChild(el('div', {style:'font-size:12.5px;color:var(--text);padding:3px 0;'}, ['\u2022 ' + text]));
+      container.appendChild(pairCompareRow(a, b, selections[i]));
     });
   }
 
