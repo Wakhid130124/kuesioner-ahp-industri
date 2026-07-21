@@ -287,6 +287,7 @@
 
   var L1_ITEMS = ['Keselamatan', 'Kesehatan', 'Kenyamanan', 'Kemudahan'];
   var L1_PAIR_INDEX = [[0,1],[0,2],[0,3],[1,2],[1,3],[2,3]];
+  var PIE_COLORS = ['#1E3A5F', '#B8863B', '#3D5A80', '#8C6D46', '#5C7A99', '#C9A15C'];
 
   var RI_TABLE = { 1:0, 2:0, 3:0.58, 4:0.9, 5:1.12, 6:1.24, 7:1.32, 8:1.41, 9:1.45, 10:1.49 };
 
@@ -337,7 +338,9 @@
     importError: '',
     adminData: null,
     adminLoading: false,
-    adminError: ''
+    adminError: '',
+    adminTab: 'kriteria',
+    adminOpenRespondent: null
   };
 
   // ---------- AHP MATH ----------
@@ -528,6 +531,7 @@
   async function loadAdminData() {
     state.adminLoading = true;
     state.adminError = '';
+    state.adminOpenRespondent = null;
     render();
     try {
       var response = await withTimeout(
@@ -860,6 +864,153 @@
     return card;
   }
 
+  // ---------- PIE CHART & RINGKASAN JAWABAN (helper) ----------
+  function pieChart(items, weights, size) {
+    size = size || 140;
+    var wrap = el('div', {style:'display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin:10px 0;'});
+    var acc = 0;
+    var stops = [];
+    items.forEach(function(item, i){
+      var pct = weights[i] * 100;
+      var start = acc, end = acc + pct;
+      stops.push(PIE_COLORS[i % PIE_COLORS.length] + ' ' + start.toFixed(2) + '% ' + end.toFixed(2) + '%');
+      acc = end;
+    });
+    var pie = el('div', {style:'width:' + size + 'px;height:' + size + 'px;border-radius:50%;flex-shrink:0;background:conic-gradient(' + stops.join(',') + ');box-shadow:0 1px 3px rgba(30,58,95,0.15);'});
+    wrap.appendChild(pie);
+    var legend = el('div', {style:'display:flex;flex-direction:column;gap:6px;'});
+    items.forEach(function(item, i){
+      var pct = (weights[i] * 100).toFixed(1);
+      var row = el('div', {style:'display:flex;align-items:center;gap:8px;font-size:12.5px;'});
+      row.appendChild(el('span', {style:'width:11px;height:11px;border-radius:3px;flex-shrink:0;background:' + PIE_COLORS[i % PIE_COLORS.length] + ';'}));
+      row.appendChild(el('span', {style:'color:var(--text);'}, [item + ' \u2014 ' + pct + '%']));
+      legend.appendChild(row);
+    });
+    wrap.appendChild(legend);
+    return wrap;
+  }
+
+  function weightGroupHeader(title, result) {
+    var row = el('div', {style:'display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;'});
+    row.appendChild(el('span', {style:'font-size:13.5px;font-weight:700;color:var(--ink);'}, [title]));
+    row.appendChild(el('span', {style:'font-size:11.5px;color:var(--text-mute);'}, [
+      result && result.n > 0 ? ('n = ' + result.n + ' \u00b7 CR = ' + result.CR.toFixed(3)) : 'Belum ada data konsisten'
+    ]));
+    return row;
+  }
+
+  function identityRow(label, value) {
+    var row = el('div', {style:'display:flex;justify-content:space-between;font-size:12.5px;padding:4px 0;border-bottom:1px solid var(--line);'});
+    row.appendChild(el('span', {style:'color:var(--text-mute);'}, [label]));
+    row.appendChild(el('span', {style:'color:var(--text);font-weight:600;text-align:right;'}, [value || '-']));
+    return row;
+  }
+
+  function appendSummaryList(container, items, pairs, selections) {
+    if (!selections || !allFilled(selections)) {
+      container.appendChild(el('p', {class:'ahp-p', style:'font-size:12px;color:var(--text-mute);'}, ['Data jawaban tidak lengkap.']));
+      return;
+    }
+    pairs.forEach(function(pair, i){
+      var a = items[pair[0]], b = items[pair[1]];
+      var idx = selections[i];
+      var val = SCALE[idx];
+      var text;
+      if (idx === 8) {
+        text = a + ' setara pentingnya dengan ' + b;
+      } else if (idx < 8) {
+        text = a + ' lebih penting dari ' + b + ' (skala ' + val + ')';
+      } else {
+        text = b + ' lebih penting dari ' + a + ' (skala ' + val + ')';
+      }
+      container.appendChild(el('div', {style:'font-size:12.5px;color:var(--text);padding:3px 0;'}, ['\u2022 ' + text]));
+    });
+  }
+
+  function adminTabs() {
+    var wrap = el('div', {style:'display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--line);flex-wrap:wrap;'});
+    [['kriteria','Kriteria (Level 1)'], ['subkriteria','Subkriteria (Level 2)'], ['jawaban','Jawaban Responden']].forEach(function(t){
+      var active = state.adminTab === t[0];
+      wrap.appendChild(el('button', {
+        style: 'padding:9px 14px;border:none;background:none;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;' +
+          (active ? 'color:var(--ink);border-bottom:2.5px solid var(--gold);' : 'color:var(--text-mute);border-bottom:2.5px solid transparent;'),
+        onclick: function(){ state.adminTab = t[0]; render(); }
+      }, [t[1]]));
+    });
+    return wrap;
+  }
+
+  function renderAdminKriteria() {
+    var wrap = el('div', {});
+    var result = aggregateGroup('l1', 4, L1_PAIR_INDEX, state.adminData);
+    wrap.appendChild(weightGroupHeader('Bobot Kriteria Level 1', result));
+    if (result.n > 0) {
+      wrap.appendChild(pieChart(L1_ITEMS, result.weights, 160));
+    } else {
+      wrap.appendChild(el('p', {class:'ahp-p', style:'font-size:12.5px;color:var(--text-mute);'}, ['Belum ada responden yang konsisten (CR \u2264 0,1).']));
+    }
+    return wrap;
+  }
+
+  function renderAdminSubkriteria() {
+    var grid = el('div', {style:'display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;'});
+    ['keselamatan','kesehatan','kenyamanan','kemudahan'].forEach(function(gk){
+      var g = L2_GROUPS[gk];
+      var result = aggregateGroup(gk, g.items.length, g.pairs, state.adminData);
+      var block = el('div', {style:'border:1px solid var(--line);border-radius:8px;padding:14px;'});
+      block.appendChild(weightGroupHeader(g.label, result));
+      if (result.n > 0) {
+        block.appendChild(pieChart(g.items, result.weights, 110));
+      } else {
+        block.appendChild(el('p', {class:'ahp-p', style:'font-size:12px;color:var(--text-mute);'}, ['Belum ada responden yang konsisten.']));
+      }
+      grid.appendChild(block);
+    });
+    return grid;
+  }
+
+  function renderAdminJawaban() {
+    var wrap = el('div', {});
+    state.adminData.forEach(function(r, idx){
+      var res = computeResponseResults(r);
+      var isOpen = state.adminOpenRespondent === idx;
+      var allConsistent = [res.l1, res.keselamatan, res.kesehatan, res.kenyamanan, res.kemudahan].every(function(x){ return x && x.CR <= 0.1; });
+
+      var header = el('div', {
+        style: 'display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border:1px solid var(--line);border-radius:' + (isOpen ? '8px 8px 0 0' : '8px') + ';cursor:pointer;background:' + (isOpen ? 'var(--gold-soft)' : 'var(--paper-raised)') + ';margin-bottom:' + (isOpen ? '0' : '8px') + ';',
+        onclick: function(){ state.adminOpenRespondent = isOpen ? null : idx; render(); }
+      });
+      header.appendChild(el('span', {style:'font-size:13.5px;font-weight:700;color:var(--ink);'}, [
+        (r.nama || '-') + ' \u2014 ' + (r.jabatan === 'Lainnya' ? (r.jabatanLainnya || '-') : (r.jabatan || '-'))
+      ]));
+      header.appendChild(el('span', {class: 'ahp-cr-badge ' + (allConsistent ? 'good' : 'bad')}, [
+        allConsistent ? '\u2713 Konsisten' : '\u26a0 Ada yang Tidak Konsisten'
+      ]));
+      wrap.appendChild(header);
+
+      if (isOpen) {
+        var detail = el('div', {style:'border:1px solid var(--line);border-top:none;border-radius:0 0 8px 8px;padding:16px;margin-bottom:8px;background:var(--paper-raised);'});
+        detail.appendChild(identityRow('Instansi', r.instansi));
+        detail.appendChild(identityRow('Bidang Keahlian', r.keahlian));
+        detail.appendChild(identityRow('Pengalaman Kerja', r.pengalaman ? (r.pengalaman + ' tahun') : '-'));
+        detail.appendChild(identityRow('Sertifikasi SKK', r.sertifikasi));
+        detail.appendChild(identityRow('Nomor SKK', r.nomorSkk));
+
+        detail.appendChild(el('div', {style:'font-size:12.5px;font-weight:700;color:var(--ink);margin:14px 0 4px;'}, ['Level 1 \u2013 Kriteria']));
+        appendSummaryList(detail, L1_ITEMS, L1_PAIR_INDEX, r.l1);
+
+        ['keselamatan','kesehatan','kenyamanan','kemudahan'].forEach(function(gk){
+          var g = L2_GROUPS[gk];
+          detail.appendChild(el('div', {style:'font-size:12.5px;font-weight:700;color:var(--ink);margin:14px 0 4px;'}, [g.label]));
+          appendSummaryList(detail, g.items, g.pairs, r.l2 && r.l2[gk]);
+        });
+
+        wrap.appendChild(detail);
+      }
+    });
+    return wrap;
+  }
+
   function renderAdmin() {
     var card = el('div', {class:'ahp-card'});
     card.appendChild(el('div', {class:'ahp-h2'}, ['Rekap Data Responden (Peneliti)']));
@@ -886,86 +1037,20 @@
       return card;
     }
 
-    card.appendChild(el('button', {class:'ahp-btn ahp-btn-ghost', style:'margin-bottom:16px;', onclick: loadAdminData}, ['\u21bb Muat Ulang Data']));
+    var toolbar = el('div', {style:'display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;'});
+    toolbar.appendChild(el('span', {style:'font-size:12.5px;color:var(--text-mute);'}, [state.adminData.length + ' responden masuk']));
+    toolbar.appendChild(el('button', {class:'ahp-btn ahp-btn-ghost', onclick: loadAdminData}, ['\u21bb Muat Ulang Data']));
+    card.appendChild(toolbar);
 
-    // ---- Tabel detail per responden ----
-    card.appendChild(el('div', {class:'ahp-h2', style:'font-size:16px;margin-top:6px;'}, ['Detail per Responden (' + state.adminData.length + ' orang)']));
+    card.appendChild(adminTabs());
 
-    var table = el('table', {class:'ahp-admin-table'});
-    table.appendChild(el('tr', {}, [
-      el('th', {}, ['Nama']),
-      el('th', {}, ['Jabatan']),
-      el('th', {}, ['Bidang']),
-      el('th', {}, ['Sertifikasi SKK']),
-      el('th', {}, ['Nomor SKK']),
-      el('th', {}, ['CR L1']),
-      el('th', {}, ['CR Keselamatan']),
-      el('th', {}, ['CR Kesehatan']),
-      el('th', {}, ['CR Kenyamanan']),
-      el('th', {}, ['CR Kemudahan'])
-    ]));
-
-    function crCell(result) {
-      if (!result) return el('td', {}, ['\u2013']);
-      var color = result.CR <= 0.1 ? 'var(--good)' : 'var(--bad)';
-      return el('td', {}, [el('span', {style:'font-weight:700;color:' + color + ';'}, [result.CR.toFixed(3)])]);
+    if (state.adminTab === 'subkriteria') {
+      card.appendChild(renderAdminSubkriteria());
+    } else if (state.adminTab === 'jawaban') {
+      card.appendChild(renderAdminJawaban());
+    } else {
+      card.appendChild(renderAdminKriteria());
     }
-
-    state.adminData.forEach(function(r){
-      var res = computeResponseResults(r);
-      var row = el('tr', {}, [
-        el('td', {}, [r.nama || '-']),
-        el('td', {}, [r.jabatan === 'Lainnya' ? (r.jabatanLainnya || '-') : (r.jabatan || '-')]),
-        el('td', {}, [r.keahlian || '-']),
-        el('td', {}, [r.sertifikasi || '-']),
-        el('td', {}, [r.nomorSkk || '-'])
-      ]);
-      row.appendChild(crCell(res.l1));
-      row.appendChild(crCell(res.keselamatan));
-      row.appendChild(crCell(res.kesehatan));
-      row.appendChild(crCell(res.kenyamanan));
-      row.appendChild(crCell(res.kemudahan));
-      table.appendChild(row);
-    });
-    card.appendChild(table);
-    card.appendChild(el('p', {class:'ahp-p', style:'font-size:12px;color:var(--text-mute);margin-top:8px;'}, [
-      'Warna merah pada CR menandakan jawaban responden tersebut belum konsisten (CR > 0,1) dan otomatis dikeluarkan dari perhitungan bobot akhir gabungan di bawah.'
-    ]));
-
-    // ---- Bobot akhir gabungan ----
-    card.appendChild(el('div', {class:'ahp-h2', style:'font-size:16px;margin-top:26px;'}, ['Bobot Akhir Gabungan (Responden Konsisten, CR \u2264 0,1)']));
-
-    function weightBlock(title, items, result) {
-      var wrap = el('div', {style:'margin-bottom:18px;'});
-      var titleRow = el('div', {style:'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;'});
-      titleRow.appendChild(el('span', {style:'font-size:13.5px;font-weight:700;color:var(--ink);'}, [title]));
-      titleRow.appendChild(el('span', {style:'font-size:12px;color:var(--text-mute);'}, [
-        result ? ('n = ' + result.n + ' \u00b7 CR = ' + result.CR.toFixed(3)) : 'Belum ada data'
-      ]));
-      wrap.appendChild(titleRow);
-      if (result && result.n > 0) {
-        items.forEach(function(item, i){
-          var pct = (result.weights[i] * 100).toFixed(1);
-          var itemRow = el('div', {style:'margin-bottom:6px;'});
-          itemRow.appendChild(el('div', {style:'display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:2px;'}, [
-            el('span', {}, [item]), el('span', {}, [pct + '%'])
-          ]));
-          var barWrap = el('div', {class:'ahp-weight-bar-wrap'});
-          barWrap.appendChild(el('div', {class:'ahp-weight-bar', style:'width:' + pct + '%;'}));
-          itemRow.appendChild(barWrap);
-          wrap.appendChild(itemRow);
-        });
-      } else {
-        wrap.appendChild(el('p', {class:'ahp-p', style:'font-size:12.5px;color:var(--text-mute);'}, ['Belum ada responden yang konsisten (CR \u2264 0,1) untuk kelompok ini.']));
-      }
-      return wrap;
-    }
-
-    card.appendChild(weightBlock('Level 1 \u2013 Kriteria', L1_ITEMS, aggregateGroup('l1', 4, L1_PAIR_INDEX, state.adminData)));
-    ['keselamatan','kesehatan','kenyamanan','kemudahan'].forEach(function(gk){
-      var g = L2_GROUPS[gk];
-      card.appendChild(weightBlock(g.label, g.items, aggregateGroup(gk, g.items.length, g.pairs, state.adminData)));
-    });
 
     return card;
   }
