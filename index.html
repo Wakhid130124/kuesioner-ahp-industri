@@ -999,9 +999,15 @@
       header.appendChild(el('span', {style:'font-size:13.5px;font-weight:700;color:var(--ink);'}, [
         (r.nama || '-') + ' \u2014 ' + (r.jabatan === 'Lainnya' ? (r.jabatanLainnya || '-') : (r.jabatan || '-'))
       ]));
-      header.appendChild(el('span', {class: 'ahp-cr-badge ' + (allConsistent ? 'good' : 'bad')}, [
+      var headerRight = el('div', {style:'display:flex;align-items:center;gap:8px;'});
+      headerRight.appendChild(el('button', {
+        style: 'font-size:11px;padding:4px 9px;border-radius:5px;border:1px solid var(--ink);background:none;color:var(--ink);cursor:pointer;white-space:nowrap;font-family:inherit;',
+        onclick: function(ev){ ev.stopPropagation(); window.open('https://lpjk.pu.go.id/pencarian-tkk-index', '_blank'); }
+      }, ['Cek Nama di LPJK \u2197']));
+      headerRight.appendChild(el('span', {class: 'ahp-cr-badge ' + (allConsistent ? 'good' : 'bad')}, [
         allConsistent ? '\u2713 Konsisten' : '\u26a0 Ada yang Tidak Konsisten'
       ]));
+      header.appendChild(headerRight);
       wrap.appendChild(header);
 
       if (isOpen) {
@@ -1010,11 +1016,7 @@
         detail.appendChild(identityRow('Bidang Keahlian', r.keahlian));
         detail.appendChild(identityRow('Pengalaman Kerja', r.pengalaman ? (r.pengalaman + ' tahun') : '-'));
         detail.appendChild(identityRow('Sertifikasi SKK', r.sertifikasi));
-        var lpjkBtn = r.nomorSkk ? el('button', {
-          style: 'font-size:11px;padding:3px 9px;border-radius:5px;border:1px solid var(--ink);background:none;color:var(--ink);cursor:pointer;white-space:nowrap;font-family:inherit;',
-          onclick: function(){ window.open('https://lpjk.pu.go.id/cek-permohonan-skk', '_blank'); }
-        }, ['Cek di LPJK \u2197']) : null;
-        detail.appendChild(identityRow('Nomor SKK', r.nomorSkk, lpjkBtn));
+        detail.appendChild(identityRow('Nomor SKK', r.nomorSkk));
 
         detail.appendChild(el('div', {style:'font-size:12.5px;font-weight:700;color:var(--ink);margin:14px 0 4px;'}, ['Level 1 \u2013 Kriteria']));
         appendSummaryList(detail, L1_ITEMS, L1_PAIR_INDEX, r.l1);
