@@ -551,6 +551,24 @@
     render();
   }
 
+  async function markVerification(r, newStatus) {
+    var prev = r.statusVerifikasi;
+    r.statusVerifikasi = newStatus; // optimistik, langsung terlihat
+    render();
+    try {
+      await fetch(GOOGLE_WEB_APP_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'verify', rowNumber: r.rowNumber, status: newStatus })
+      });
+    } catch (e) {
+      r.statusVerifikasi = prev;
+      window.alert('Gagal menyimpan status verifikasi (koneksi bermasalah). Coba lagi.');
+      render();
+    }
+  }
+
   function computeResponseResults(r) {
     return {
       l1: (r.l1 && allFilled(r.l1)) ? computeWeightsAndCR(buildMatrixFromSelections(4, L1_PAIR_INDEX, r.l1)) : null,
@@ -1004,6 +1022,12 @@
         style: 'font-size:11px;padding:4px 9px;border-radius:5px;border:1px solid var(--ink);background:none;color:var(--ink);cursor:pointer;white-space:nowrap;font-family:inherit;',
         onclick: function(ev){ ev.stopPropagation(); window.open('https://lpjk.pu.go.id/pencarian-tkk-index', '_blank'); }
       }, ['Cek Nama di LPJK \u2197']));
+      var isValid = r.statusVerifikasi === 'Valid';
+      headerRight.appendChild(el('button', {
+        class: 'ahp-cr-badge ' + (isValid ? 'good' : 'bad'),
+        style: 'cursor:pointer;border:none;font-family:inherit;',
+        onclick: function(ev){ ev.stopPropagation(); markVerification(r, isValid ? 'Belum' : 'Valid'); }
+      }, [isValid ? '\u2713 Valid' : 'Valid?']));
       headerRight.appendChild(el('span', {class: 'ahp-cr-badge ' + (allConsistent ? 'good' : 'bad')}, [
         allConsistent ? '\u2713 Konsisten' : '\u26a0 Ada yang Tidak Konsisten'
       ]));
